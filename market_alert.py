@@ -4,26 +4,28 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import requests
 
-def get_price_and_change(ticker: str) -> tuple[float | None, float | None]:
+def get_price_and_change(ticker: str) -> tuple[float | None, float | None, float | None]:
     try:
         t = yf.Ticker(ticker)
         info = t.fast_info
         price = info.last_price
         prev = info.previous_close
         if price is None or prev is None or prev == 0:
-            return None, None
-        pct = (price - prev) / prev * 100
-        return price, pct
+            return None, None, None
+        change = price - prev
+        pct = (change / prev) * 100
+        return price, change, pct
     except Exception:
-        return None, None
+        return None, None, None
 
 
-def format_line(name: str, ticker: str) -> str:
-    price, pct = get_price_and_change(ticker)
+def format_line(name: str, ticker: str) -> tuple[str, float | None]:
+    price, change, pct = get_price_and_change(ticker)
     if price is None:
-        return f"{name}: data unavailable"
-    sign = "+" if pct >= 0 else ""
-    return f"{name}: ${price:,.2f}  ({sign}{pct:.2f}%)"
+        return f"{name}: data unavailable", None
+    sign = "+" if change >= 0 else ""
+    line = f"{name}: ${price:,.2f}  ({sign}{change:,.2f} / {sign}{pct:.2f}%)"
+    return line, pct
 
 
 def is_weekend() -> bool:
@@ -47,34 +49,64 @@ def build_message() -> str:
     lines.append(f"📊 Market Update — {now_str}")
     lines.append("")
 
+    all_movers = []  # to find best/worst
+
     if is_weekend():
         lines.append("🪙 Crypto")
-        lines.append(format_line("Bitcoin", "BTC-USD"))
-        lines.append(format_line("Ethereum", "ETH-USD"))
-        lines.append(format_line("Hyperliquid", "HYPE32196-USD"))
-        lines.append(format_line("Venice (VVV)", "VVV35509-USD"))
+        for name, ticker in [
+            ("Bitcoin", "BTC-USD"),
+            ("Ethereum", "ETH-USD"),
+            ("Hyperliquid", "HYPE32196-USD"),
+            ("Venice (VVV)", "VVV35509-USD"),
+        ]:
+            line, pct = format_line(name, ticker)
+            lines.append(line)
+            if pct is not None:
+                all_movers.append((name, pct))
     else:
         if is_us_market_open():
             lines.append("🇺🇸 Indices (Cash)")
-            lines.append(format_line("SPX", "^GSPC"))
-            lines.append(format_line("NDX", "^NDX"))
+            for name, ticker in [("SPX", "^GSPC"), ("NDX", "^NDX")]:
+                line, pct = format_line(name, ticker)
+                lines.append(line)
+                if pct is not None:
+                    all_movers.append((name, pct))
         else:
             lines.append("🇺🇸 Indices (Futures)")
-            lines.append(format_line("ES (SPX fut)", "ES=F"))
-            lines.append(format_line("NQ (NDX fut)", "NQ=F"))
+            for name, ticker in [("ES (SPX fut)", "ES=F"), ("NQ (NDX fut)", "NQ=F")]:
+                line, pct = format_line(name, ticker)
+                lines.append(line)
+                if pct is not None:
+                    all_movers.append((name, pct))
 
         lines.append("")
         lines.append("📈 Stocks")
-        lines.append(format_line("GOOGL", "GOOGL"))
-        lines.append(format_line("HOOD", "HOOD"))
-        lines.append(format_line("SOFI", "SOFI"))
+        for name, ticker in [("GOOGL", "GOOGL"), ("HOOD", "HOOD"), ("SOFI", "SOFI")]:
+            line, pct = format_line(name, ticker)
+            lines.append(line)
+            if pct is not None:
+                all_movers.append((name, pct))
 
         lines.append("")
         lines.append("🪙 Crypto")
-        lines.append(format_line("Bitcoin", "BTC-USD"))
-        lines.append(format_line("Ethereum", "ETH-USD"))
-        lines.append(format_line("Hyperliquid", "HYPE32196-USD"))
-        lines.append(format_line("Venice (VVV)", "VVV35509-USD"))
+        for name, ticker in [
+            ("Bitcoin", "BTC-USD"),
+            ("Ethereum", "ETH-USD"),
+            ("Hyperliquid", "HYPE32196-USD"),
+            ("Venice (VVV)", "VVV35509-USD"),
+        ]:
+            line, pct = format_line(name, ticker)
+            lines.append(line)
+            if pct is not None:
+                all_movers.append((name, pct))
+
+    # Add Best / Worst summary at the top (after the header)
+    if all_movers:
+        best = max(all_movers, key=lambda x: x[1])
+        worst = min(all_movers, key=lambda x: x[1])
+        summary = f"Best: {best[0]} {best[1]:+.2f}%   |   Worst: {worst[0]} {worst[1]:+.2f}%"
+        lines.insert(1, summary)
+        lines.insert(2, "")
 
     return "\n".join(lines)
 
