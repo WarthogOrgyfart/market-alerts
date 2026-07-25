@@ -42,7 +42,7 @@ def is_us_market_open() -> bool:
 
 def build_message() -> str:
     lines = []
-    now_str = datetime.now(ZoneInfo("Europe/Amsterdam")).strftime("%a %d %b  %H:%M Amsterdam")
+    now_str = datetime.now(ZoneInfo("Europe/Amsterdam")).strftime("%a %d %b  %H:%M")
 
     lines.append(f"📊 Market Update — {now_str}")
     lines.append("")
