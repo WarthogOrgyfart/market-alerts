@@ -1,0 +1,27 @@
+name: Market Alert
+
+on:
+  schedule:
+    - cron: '0 11,16,22 * * *'      # 11:00, 16:00, 22:00
+      timezone: Europe/Amsterdam
+  workflow_dispatch:                # manual "Run workflow" button
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: pip install yfinance requests
+
+      - name: Run market alert
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python market_alert.py
