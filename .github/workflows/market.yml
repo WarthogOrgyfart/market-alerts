@@ -2,8 +2,8 @@ name: Market Alert
 
 on:
   schedule:
-    - cron: '0 11,16,22 * * *'      # 11:00, 16:00, 22:00
-      timezone: Europe/Amsterdam
+    # 11:00, 16:00, 22:00 Amsterdam time (UTC+2 in summer)
+    - cron: '0 9,14,20 * * *'
   workflow_dispatch:                # manual "Run workflow" button
 
 jobs:
